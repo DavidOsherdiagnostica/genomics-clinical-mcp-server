@@ -73,7 +73,7 @@ The parser automatically extracts affected genes and identifies when genetic tes
 
 ### Prerequisites
 
-- Node.js (v18 or higher)
+- Node.js (v20 or higher)
 - npm or yarn
 
 ### Installation

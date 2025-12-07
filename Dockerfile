@@ -1,5 +1,5 @@
-# Use Node.js 18 on Alpine Linux
-FROM node:18-alpine AS builder
+# Use Node.js 20 on Alpine Linux (required for cheerio@1.1.2+)
+FROM node:20-alpine AS builder
 
 # Set working directory
 WORKDIR /app
@@ -17,7 +17,7 @@ COPY . .
 RUN npm run build
 
 # --- Production Stage ---
-FROM node:18-alpine
+FROM node:20-alpine
 
 # Set working directory
 WORKDIR /app
