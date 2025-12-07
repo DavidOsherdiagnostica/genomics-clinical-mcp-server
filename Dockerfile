@@ -35,6 +35,8 @@ COPY --from=builder /app/dist ./dist
 ENV NODE_ENV=production
 # Default port for Cloud Run
 ENV PORT=8080
+# Allow all hosts by default in container environment
+ENV ALLOWED_HOSTS=*
 
 # Expose the port
 EXPOSE 8080

@@ -119,8 +119,8 @@ export function setupHttpServer(port: number = 3000) {
     // Handle DELETE requests for session termination
     app.delete('/mcp', handleSessionRequest);
 
-    return app.listen(port, () => {
-        console.log(`MCP HTTP Server listening on port ${port}`);
+    return app.listen(port, '0.0.0.0', () => {
+        console.log(`MCP HTTP Server listening on port ${port} and host 0.0.0.0`);
     });
 }
 
