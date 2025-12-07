@@ -1,14 +1,15 @@
 /**
- * Generic Application Configuration Constants for MCP Server
+ * Genomics Application Configuration Constants for MCP Server
  * This file contains general configuration settings for the MCP server and its components.
  * Customize these values for your specific API integration.
  */
 
 // ===== API CONFIGURATION =====
 export const APP_CONFIG = {
-  API_BASE_URL: process.env.API_BASE_URL || 'http://localhost:3000/api', // Placeholder for your API base URL
+  CLINVAR_BASE_URL: process.env.CLINVAR_BASE_URL || 'https://eutils.ncbi.nlm.nih.gov/entrez/eutils',
+  PHARMGKB_BASE_URL: process.env.PHARMGKB_BASE_URL || 'https://api.pharmgkb.org/v1',
   API_VERSION: process.env.API_VERSION || '1.0.0',
-  DEFAULT_DATA_SOURCE: 'generic_api_source', // Default source for response metadata
+  DEFAULT_DATA_SOURCE: 'genomics_clinical_data', // Default source for response metadata
 } as const;
 
 // ===== REQUEST CONFIGURATION =====
@@ -20,7 +21,7 @@ export const REQUEST_CONFIG = {
   HEADERS: {
     'Content-Type': 'application/json',
     Accept: 'application/json',
-    'User-Agent': 'Generic-MCP-Server/1.0.0', // Customize your User-Agent
+    'User-Agent': 'Genomics-Clinical-MCP-Server/1.0.0', // Customize your User-Agent
     // Add any other default headers required by your API
   },
 } as const;
@@ -34,8 +35,27 @@ export const CACHE_CONFIG = {
 
 // ===== MCP SERVER CONFIGURATION =====
 export const MCP_SERVER_CONFIG = {
-  SERVER_NAME: process.env.MCP_SERVER_NAME || 'generic-mcp-server',
+  SERVER_NAME: process.env.MCP_SERVER_NAME || 'genomics-clinical',
   SERVER_VERSION: process.env.MCP_SERVER_VERSION || '1.0.0',
+  SERVER_INSTRUCTIONS: `Clinical genomics and pharmacogenomics decision support. Integrates ClinVar variant pathogenicity data with PharmGKB drug-gene interaction guidelines.
+
+Supported Formats:
+- Gene symbols: HGNC standard (e.g., BRCA1, TP53, CFTR)
+- rsIDs: dbSNP reference SNPs (e.g., rs9923231)
+- HGVS notation: Standard variant nomenclature (e.g., NM_007294.4:c.3101_3102del)
+- Genomic locations: Chromosome/pos with GRCh37 or GRCh38
+- ClinVar IDs: VCV or RCV identifiers
+- Drug names: Chemical or brand names
+- RxCUI codes: RxNorm identifiers
+- Gene-allele pairs: GENE*ALLELE format (e.g., CYP2C9*3)
+- Genotypes: Allele pairs (e.g., *1/*3)
+
+Validation:
+Inputs are automatically validated. Invalid inputs return detailed error messages with correct format examples.
+
+Response Formats:
+- concise: Clinically relevant info, optimal for human-readable summaries.
+- detailed: Full technical data, IDs, and metadata for downstream processing.`,
 
   CAPABILITIES: {
     RESOURCES: true,

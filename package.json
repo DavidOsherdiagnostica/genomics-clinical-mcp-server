@@ -44,6 +44,8 @@
   ],
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.17.3",
+    "@types/cheerio": "^1.0.0",
+    "cheerio": "^1.1.2",
     "cors": "^2.8.5",
     "express": "^5.1.0",
     "node-fetch": "^3.3.2",

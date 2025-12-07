@@ -4,27 +4,34 @@ import { MCP_SERVER_CONFIG } from "./config/appConfig.js";
 
 // Import generic tool and prompt registrations
 import { registerTemplatePrompt } from "./prompts/templatePrompt.js";
-import { registerTemplateTool } from "./tools/templateTool.js";
-import { registerTemplateResource } from "./resources/templateResource.js";
+
+
+// Import Genomics tools
+import { registerClinVarTools } from "./tools/clinvarTools.js";
+import { registerPharmGKBTools } from "./tools/pharmgkbTools.js";
+import { registerGenomicsSummaryTool } from "./tools/genomicsSummaryTool.js";
+
+// Import Genomics Resources
+import { registerGenomicsResources } from "./resources/genomics/index.js";
 
 // Create generic MCP Server
 const server = new McpServer({
   name: MCP_SERVER_CONFIG.SERVER_NAME,
-  version: MCP_SERVER_CONFIG.SERVER_VERSION
+  version: MCP_SERVER_CONFIG.SERVER_VERSION,
+  instructions: MCP_SERVER_CONFIG.SERVER_INSTRUCTIONS
 });
 
 // Register generic prompts, tools, and resources
 registerTemplatePrompt(server);
-registerTemplateTool(server);
-registerTemplateResource(server); // Register the generic resource
+// registerTemplateResource(server); // REMOVED template resource
 
-// TODO: Add your specific tool and prompt registrations here
-// import { registerYourCustomTool } from "./tools/yourCustomTool.js";
-// registerYourCustomTool(server);
+// Register Genomics Resources
+registerGenomicsResources(server);
 
-// TODO: Add your specific resource registrations here
-// import { registerYourCustomResource } from "./resources/yourCustomResource.js";
-// registerYourCustomResource(server);
+// Register Genomics Tools
+registerClinVarTools(server);
+registerPharmGKBTools(server);
+registerGenomicsSummaryTool(server);
 
 // Start MCP in stdio mode
 const transport = new StdioServerTransport();

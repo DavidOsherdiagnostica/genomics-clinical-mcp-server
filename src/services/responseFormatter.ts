@@ -40,19 +40,12 @@ export class GenericResponseFormatterService {
     };
 
     const genericClinicalNotes = [
-      'Generic response generated for the tool.',
-      'Review data carefully for relevance to your query.',
+      'Information provided is for general reference.',
+      'Always consult relevant experts for specific advice.',
     ];
 
     const genericWarnings: string[] = []; // Tools can add specific warnings
-    const genericNextActions: Array<{ tool: string; reason: string; parameters_hint: string }> = [
-      // Example generic next action
-      {
-        tool: 'template_tool',
-        reason: 'Explore further using the template tool for detailed analysis',
-        parameters_hint: 'Use specific parameters based on the current output',
-      },
-    ];
+    const genericNextActions: Array<{ tool: string; reason: string; parameters_hint: string }> = [];
 
     return createMcpSuccessResponse(processedData, {
       totalResults: genericMetadata.total_results,
