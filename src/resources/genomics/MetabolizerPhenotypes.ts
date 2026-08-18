@@ -1,5 +1,5 @@
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { z } from "zod";
+import type { McpServer } from '@modelcontextprotocol/server';
+import { STATIC_RESOURCE_TTL_MS } from '../../server/createServer.js';
 
 const MetabolizerPhenotypes = {
   "phenotypes": {
@@ -83,7 +83,8 @@ export function registerMetabolizerPhenotypes(server: McpServer) {
     {
       title: "Metabolizer Phenotype Definitions",
       description: "Standard definitions for metabolizer phenotypes and their clinical implications.",
-      schema: z.object({}).passthrough()
+      mimeType: 'application/json',
+      cacheHint: { ttlMs: STATIC_RESOURCE_TTL_MS, cacheScope: 'public' }
     },
     async () => ({
       contents: [{

@@ -1,11 +1,11 @@
 {
-  "name": "generic-mcp-server-template",
-  "version": "1.0.0",
-  "description": "A generic template for a Model Context Protocol (MCP) server, providing a robust and extensible foundation for AI agent integrations.",
+  "name": "genomics-clinical-mcp-server",
+  "version": "2.0.0",
+  "description": "Clinical genomics and pharmacogenomics MCP server integrating ClinVar and PharmGKB/ClinPGx for AI agents.",
   "type": "module",
   "main": "dist/index.js",
   "bin": {
-    "generic-mcp-server-template": "dist/index.js"
+    "genomics-clinical-mcp-server": "dist/index.js"
   },
   "scripts": {
     "build": "tsc && node -e \"if (process.platform !== 'win32') require('fs').chmodSync('dist/index.js', 0o755)\"",
@@ -14,27 +14,31 @@
     "start": "node dist/index.js",
     "start:http": "node dist/server.js --http",
     "start:stdio": "node dist/server.js",
-    "test": "echo \"Tests will be added later\" && exit 0",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "prepublishOnly": "npm run build"
   },
   "keywords": [
     "mcp",
     "model-context-protocol",
-    "template",
+    "genomics",
+    "clinvar",
+    "pharmgkb",
+    "pharmacogenomics",
+    "clinical",
     "ai-agent",
-    "claude",
-    "anthropic",
-    "typescript"
+    "cursor",
+    "claude"
   ],
-  "author": "David Osher <your-email@example.com> (https://linkedin.com/in/davidosher)",
+  "author": "David Osher <david.osher.diagnostica@outlook.com> (https://linkedin.com/in/davidosher)",
   "license": "CC-BY-NC-SA-4.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/your-username/generic-mcp-server-template.git"
+    "url": "https://github.com/DavidOsherdiagnostica/genomics-clinical-mcp-server.git"
   },
-  "homepage": "https://github.com/your-username/generic-mcp-server-template#readme",
+  "homepage": "https://github.com/DavidOsherdiagnostica/genomics-clinical-mcp-server#readme",
   "bugs": {
-    "url": "https://github.com/your-username/generic-mcp-server-template/issues"
+    "url": "https://github.com/DavidOsherdiagnostica/genomics-clinical-mcp-server/issues"
   },
   "files": [
     "dist/**/*",
@@ -43,17 +47,16 @@
     "package.json"
   ],
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.17.3",
-    "@types/cheerio": "^1.0.0",
+    "@modelcontextprotocol/express": "^2.0.0",
+    "@modelcontextprotocol/node": "^2.0.0",
+    "@modelcontextprotocol/server": "^2.0.0",
     "cheerio": "^1.1.2",
-    "cors": "^2.8.5",
-    "express": "^5.1.0",
-    "node-fetch": "^3.3.2",
-    "zod": "^3.25.76"
+    "dotenv": "^17.2.1",
+    "express-rate-limit": "^8.0.1",
+    "jose": "^6.1.0",
+    "zod": "^4.1.5"
   },
   "devDependencies": {
-    "@types/cors": "^2.8.19",
-    "@types/express": "^5.0.3",
     "@types/node": "^20.0.0",
     "@typescript-eslint/eslint-plugin": "^8.40.0",
     "@typescript-eslint/parser": "^8.40.0",
@@ -61,7 +64,8 @@
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-prettier": "^5.5.4",
     "prettier": "^3.6.2",
-    "typescript": "^5.0.0"
+    "typescript": "^5.0.0",
+    "vitest": "^4.0.15"
   },
   "engines": {
     "node": ">=20.0.0"

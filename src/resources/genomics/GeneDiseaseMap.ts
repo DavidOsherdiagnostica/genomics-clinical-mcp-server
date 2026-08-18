@@ -1,5 +1,5 @@
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { z } from "zod";
+import type { McpServer } from '@modelcontextprotocol/server';
+import { STATIC_RESOURCE_TTL_MS } from '../../server/createServer.js';
 
 const GeneDiseaseMap = {
   "BRCA1": {
@@ -53,7 +53,8 @@ export function registerGeneDiseaseMap(server: McpServer) {
     {
       title: "Common Gene-Disease Associations",
       description: "Quick reference map of well-established gene-disease relationships for the most clinically relevant genes.",
-      schema: z.object({}).passthrough()
+      mimeType: 'application/json',
+      cacheHint: { ttlMs: STATIC_RESOURCE_TTL_MS, cacheScope: 'public' }
     },
     async () => ({
       contents: [{

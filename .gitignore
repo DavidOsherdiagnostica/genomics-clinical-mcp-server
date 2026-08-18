@@ -14,6 +14,9 @@
 
 # Misc
 .DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
 .env
 .env.local
 .env.development.local
@@ -22,7 +25,11 @@
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+pnpm-debug.log*
 .idea
 .vscode
+.cursor
 *.log
 *.tgz
+*.tsbuildinfo
+.eslintcache

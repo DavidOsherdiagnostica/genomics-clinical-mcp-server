@@ -1,5 +1,5 @@
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { z } from "zod";
+import type { McpServer } from '@modelcontextprotocol/server';
+import { STATIC_RESOURCE_TTL_MS } from '../../server/createServer.js';
 
 const GenomeBuilds = {
   "builds": {
@@ -51,7 +51,8 @@ export function registerGenomeBuilds(server: McpServer) {
     {
       title: "Genome Build Reference",
       description: "Information about genome builds and coordinate system differences.",
-      schema: z.object({}).passthrough()
+      mimeType: 'application/json',
+      cacheHint: { ttlMs: STATIC_RESOURCE_TTL_MS, cacheScope: 'public' }
     },
     async () => ({
       contents: [{

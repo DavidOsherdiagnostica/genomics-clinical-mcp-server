@@ -1,5 +1,5 @@
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { z } from "zod";
+import type { McpServer } from '@modelcontextprotocol/server';
+import { STATIC_RESOURCE_TTL_MS } from '../../server/createServer.js';
 
 const DrugGenePairs = {
   "warfarin": {
@@ -74,7 +74,8 @@ export function registerDrugGenePairs(server: McpServer) {
     {
       title: "High-Priority Drug-Gene Interactions",
       description: "Quick lookup of most clinically important drug-gene pairs with FDA/CPIC recommendations.",
-      schema: z.object({}).passthrough()
+      mimeType: 'application/json',
+      cacheHint: { ttlMs: STATIC_RESOURCE_TTL_MS, cacheScope: 'public' }
     },
     async () => ({
       contents: [{

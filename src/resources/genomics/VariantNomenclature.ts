@@ -1,5 +1,5 @@
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { z } from "zod";
+import type { McpServer } from '@modelcontextprotocol/server';
+import { STATIC_RESOURCE_TTL_MS } from '../../server/createServer.js';
 
 const VariantNomenclature = {
   "nomenclature_systems": {
@@ -69,7 +69,8 @@ export function registerVariantNomenclature(server: McpServer) {
     {
       title: "Variant Nomenclature Guide",
       description: "Quick reference for understanding different variant naming systems and how they relate.",
-      schema: z.object({}).passthrough()
+      mimeType: 'application/json',
+      cacheHint: { ttlMs: STATIC_RESOURCE_TTL_MS, cacheScope: 'public' }
     },
     async () => ({
       contents: [{

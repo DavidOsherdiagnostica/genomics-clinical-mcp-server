@@ -1,144 +1,98 @@
-import express from "express";
-import cors from "cors";
-import { randomUUID } from "node:crypto";
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
-import { MCP_SERVER_CONFIG } from "./config/appConfig.js";
+import 'dotenv/config';
+import rateLimit from 'express-rate-limit';
+import { createMcpHandler } from '@modelcontextprotocol/server';
+import {
+  createMcpExpressApp,
+  getOAuthProtectedResourceMetadataUrl,
+  mcpAuthMetadataRouter,
+  requireBearerAuth,
+} from '@modelcontextprotocol/express';
+import { toNodeHandler } from '@modelcontextprotocol/node';
+import { HTTP_CONFIG, MCP_SERVER_CONFIG, OAUTH_CONFIG, RATE_LIMIT_CONFIG } from './config/appConfig.js';
+import { createGenomicsServer } from './server/createServer.js';
+import { getResourceServerUrl, isOAuthRequired, oauthTokenVerifier } from './middleware/oauth.js';
 
-// Import our generic tool and prompt registrations
-import { registerTemplatePrompt } from "./prompts/templatePrompt.js";
+export function setupHttpServer(port: number = HTTP_CONFIG.PORT) {
+  const app = createMcpExpressApp({
+    host: HTTP_CONFIG.HOST,
+    allowedHosts: HTTP_CONFIG.ALLOWED_HOSTS,
+    allowedOrigins: HTTP_CONFIG.CORS_ORIGINS,
+  });
 
-
-// Import Genomics tools
-import { registerClinVarTools } from "./tools/clinvarTools.js";
-import { registerPharmGKBTools } from "./tools/pharmgkbTools.js";
-import { registerGenomicsSummaryTool } from "./tools/genomicsSummaryTool.js";
-
-// Import Genomics Resources
-import { registerGenomicsResources } from "./resources/genomics/index.js";
-
-// Function to create and configure an MCP server instance
-function createServer() {
-    const server = new McpServer({
-        name: MCP_SERVER_CONFIG.SERVER_NAME,
-        version: MCP_SERVER_CONFIG.SERVER_VERSION,
-        instructions: MCP_SERVER_CONFIG.SERVER_INSTRUCTIONS
+  app.get('/health', (_req, res) => {
+    res.json({
+      status: 'ok',
+      service: MCP_SERVER_CONFIG.SERVER_NAME,
+      version: MCP_SERVER_CONFIG.SERVER_VERSION,
+      protocol: '2026-07-28',
+      oauth_enabled: OAUTH_CONFIG.ENABLED,
     });
+  });
 
-    // Register generic prompts, tools, and resources
-    registerTemplatePrompt(server);
-    // registerTemplateResource(server); // REMOVED template resource
+  if (OAUTH_CONFIG.ENABLED && OAUTH_CONFIG.ISSUER) {
+    app.use(
+      mcpAuthMetadataRouter({
+        resourceServerUrl: getResourceServerUrl(),
+        oauthMetadata: {
+          issuer: OAUTH_CONFIG.ISSUER,
+          authorization_endpoint: OAUTH_CONFIG.AUTHORIZATION_ENDPOINT || `${OAUTH_CONFIG.ISSUER}/authorize`,
+          token_endpoint: OAUTH_CONFIG.TOKEN_ENDPOINT || `${OAUTH_CONFIG.ISSUER}/oauth/token`,
+          jwks_uri: OAUTH_CONFIG.JWKS_URI || `${OAUTH_CONFIG.ISSUER}/.well-known/jwks.json`,
+          response_types_supported: ['code'],
+          grant_types_supported: ['authorization_code', 'refresh_token'],
+          code_challenge_methods_supported: ['S256'],
+          scopes_supported: OAUTH_CONFIG.SCOPES,
+        },
+      }),
+    );
+  }
 
-    // Register Genomics Resources
-    registerGenomicsResources(server);
+  const mcpHandler = createMcpHandler(() => createGenomicsServer(), { legacy: 'stateless' });
+  const nodeHandler = toNodeHandler(mcpHandler);
 
-    // Register Genomics Tools
-    registerClinVarTools(server);
-    registerPharmGKBTools(server);
-    registerGenomicsSummaryTool(server);
+  const limiter = rateLimit({
+    windowMs: 60_000,
+    max: RATE_LIMIT_CONFIG.REQUESTS_PER_MINUTE,
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
 
-    return server;
+  const authGate = requireBearerAuth({
+    verifier: oauthTokenVerifier,
+    requiredScopes: OAUTH_CONFIG.SCOPES,
+    resourceMetadataUrl: getOAuthProtectedResourceMetadataUrl(getResourceServerUrl()),
+  });
+
+  const handleMcp = (req: any, res: any) => nodeHandler(req, res, req.body);
+
+  app.use('/mcp', limiter);
+
+  if (isOAuthRequired()) {
+    app.post('/mcp', authGate, handleMcp);
+    app.get('/mcp', authGate, handleMcp);
+    app.delete('/mcp', authGate, handleMcp);
+  } else {
+    app.post('/mcp', handleMcp);
+    app.get('/mcp', handleMcp);
+    app.delete('/mcp', handleMcp);
+  }
+
+  return app.listen(port, HTTP_CONFIG.HOST, () => {
+    console.error(
+      `[genomics-clinical] MCP HTTP server on http://${HTTP_CONFIG.HOST}:${port}/mcp (OAuth ${OAUTH_CONFIG.ENABLED ? 'enabled' : 'disabled'})`,
+    );
+  });
 }
 
-// Map to store transports by session ID
-const transports: { [sessionId: string]: StreamableHTTPServerTransport } = {};
-
-// Express app setup for HTTP transport
-export function setupHttpServer(port: number = 3000) {
-    const app = express();
-    
-    // Add CORS middleware
-    app.use(cors({
-        origin: '*', // Configure appropriately for production
-        exposedHeaders: ['Mcp-Session-Id'],
-        allowedHeaders: ['Content-Type', 'mcp-session-id']
-    }));
-    
-    app.use(express.json());
-
-    // Handle POST requests for client-to-server communication
-    app.post('/mcp', async (req: express.Request, res: express.Response) => {
-        const sessionId = req.headers['mcp-session-id'] as string | undefined;
-        let transport: StreamableHTTPServerTransport;
-
-        if (sessionId && transports[sessionId]) {
-            // Reuse existing transport
-            transport = transports[sessionId];
-        } else if (!sessionId && isInitializeRequest(req.body)) {
-            // New initialization request
-            transport = new StreamableHTTPServerTransport({
-                sessionIdGenerator: () => randomUUID(),
-                onsessioninitialized: (sessionId) => {
-                    transports[sessionId] = transport;
-                },
-                // Configure allowedHosts from environment variable or default to local access
-                allowedHosts: process.env.ALLOWED_HOSTS ? process.env.ALLOWED_HOSTS.split(',') : ['127.0.0.1', 'localhost', `localhost:${port}`]
-            });
-
-            // Clean up transport when closed
-            transport.onclose = () => {
-                if (transport.sessionId) {
-                    delete transports[transport.sessionId];
-                }
-            };
-
-            const server = createServer();
-            await server.connect(transport);
-        } else {
-            res.status(400).json({
-                jsonrpc: '2.0',
-                error: {
-                    code: -32000,
-                    message: 'Bad Request: No valid session ID provided'
-                },
-                id: null
-            });
-            return;
-        }
-
-        await transport.handleRequest(req, res, req.body);
-    });
-
-    // Handle GET and DELETE requests with shared logic
-    const handleSessionRequest = async (req: express.Request, res: express.Response) => {
-        const sessionId = req.headers['mcp-session-id'] as string | undefined;
-        if (!sessionId || !transports[sessionId]) {
-            res.status(400).send('Invalid or missing session ID');
-            return;
-        }
-        
-        const transport = transports[sessionId];
-        await transport.handleRequest(req, res);
-    };
-
-    // Handle GET requests for server-to-client notifications via SSE
-    app.get('/mcp', handleSessionRequest);
-
-    // Handle DELETE requests for session termination
-    app.delete('/mcp', handleSessionRequest);
-
-    return app.listen(port, '0.0.0.0', () => {
-        console.log(`MCP HTTP Server listening on port ${port} and host 0.0.0.0`);
-    });
-}
-
-// Setup for stdio transport
 export async function setupStdioServer() {
-    const server = createServer();
-    const transport = new StdioServerTransport();
-    await server.connect(transport);
-    return server;
+  const { serveStdio } = await import('@modelcontextprotocol/server/stdio');
+  return serveStdio(() => createGenomicsServer(), { legacy: 'serve' });
 }
 
-// Auto-detect environment and start appropriate server
 if (process.argv[1]?.endsWith('server.ts') || process.argv[1]?.endsWith('server.js')) {
-    const isHttpMode = process.argv.includes('--http');
-    if (isHttpMode) {
-        const port = parseInt(process.env.PORT || '3000');
-        setupHttpServer(port);
-    } else {
-        setupStdioServer();
-    }
+  if (process.argv.includes('--http')) {
+    setupHttpServer(parseInt(process.env.PORT || String(HTTP_CONFIG.PORT), 10));
+  } else {
+    setupStdioServer();
+  }
 }

@@ -1,205 +1,246 @@
-# Genomics Clinical MCP Server
+<p align="center">
+  <img src="assets/cover.jpg" alt="Genomics Clinical MCP Server — ClinVar, FDA, and ClinPGx integration for AI agents" width="100%" />
+</p>
 
-A Model Context Protocol (MCP) server providing clinical genomics and pharmacogenomics decision support. Integrates ClinVar variant pathogenicity data with PharmGKB drug-gene interaction guidelines.
+# 🧬 Genomics Clinical MCP Server
 
-## Features
+> **MCP 2026-07-28** · Clinical genomics & pharmacogenomics decision support for AI agents  
+> **Author:** [David Osher](https://github.com/DavidOsherdiagnostica) · Diagnostica
 
-### Tools
+[![Node.js 20+](https://img.shields.io/badge/node-%3E%3D20-brightgreen)](package.json)
+[![MCP Protocol](https://img.shields.io/badge/MCP-2026--07--28-blue)](https://modelcontextprotocol.io/specification/2026-07-28)
+[![License: CC BY-NC-SA 4.0](https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-lightgrey.svg)](LICENSE)
 
-- **ClinVar Tools**:
-  - `clinvar_get_variant_info` - Search ClinVar for genetic variants and retrieve clinical significance
-  - `clinvar_check_pathogenicity` - Quick pathogenicity check for specific variants
-  - `clinvar_find_variants_in_region` - Scan genomic regions for known variants
+Revolutionary **Model Context Protocol** server providing AI agents with clinical genomics and pharmacogenomics decision support. Integrates **ClinVar** variant pathogenicity data with **PharmGKB/ClinPGx** drug-gene interaction guidelines.
 
-- **PharmGKB Tools**:
-  - `pharmgkb_get_drug_gene_interactions` - Get comprehensive pharmacogenomic information for drugs (parses HTML from InfoButton API into structured data: guidelines, drug labels, clinical annotations)
-  - `pharmgkb_check_patient_drug_risk` - Assess drug safety and dosing for patients with known genotypes (matches patient genotypes with drug-gene interactions)
-  - `pharmgkb_get_gene_drug_pairs` - Find all drugs affected by specific genes or variants (note: currently limited by drug-centric API)
+> **Sibling project:** [Israel Drugs MCP Server](https://github.com/DavidOsherdiagnostica/israel-drugs-mcp-server) — Israeli Ministry of Health pharmaceutical database
 
-- **Integrated Tools**:
-  - `genomics_clinical_summary` - Generate comprehensive clinical summary integrating genetic variant data (ClinVar) with pharmacogenomic implications (PharmGKB), matching patient genotypes to drug interactions
+---
 
-### Resources
+## ✨ Why This Server?
 
-- Gene-Disease Associations
-- VIP Pharmacogenes Reference
-- Genome Build Reference (GRCh37/GRCh38)
-- ClinVar Pathogenicity Classification Guide
-- High-Priority Drug-Gene Interactions
-- Metabolizer Phenotype Definitions
-- Variant Nomenclature Guide
-- Genetic Testing Indications
+| Capability | Description |
+|------------|-------------|
+| **ClinVar Integration** | Search variants, check pathogenicity, scan genomic regions |
+| **PharmGKB/ClinPGx** | Drug-gene interactions, patient risk assessment, gene-drug pairs |
+| **Clinical Summary** | Integrated variant + pharmacogenomic analysis |
+| **Reference Resources** | 8 static genomics references (pharmacogenes, pathogenicity guide, etc.) |
+| **Clinical Prompts** | Variant interpretation, dosing review, summary templates |
+| **Modern MCP** | SDK v2, OAuth 2.1, stateless HTTP, Cursor-ready |
 
-## Supported Formats
+---
 
-- **Gene symbols**: HGNC standard (e.g., BRCA1, TP53, CFTR)
-- **rsIDs**: dbSNP reference SNPs (e.g., rs9923231)
-- **HGVS notation**: Standard variant nomenclature (e.g., NM_007294.4:c.3101_3102del)
-- **Genomic locations**: Chromosome/position with GRCh37 or GRCh38
-- **ClinVar IDs**: VCV or RCV identifiers
-- **Drug names**: Chemical or brand names
-- **RxCUI codes**: RxNorm identifiers
-- **Gene-allele pairs**: GENE*ALLELE format (e.g., CYP2C9*3)
-- **Genotypes**: Allele pairs (e.g., *1/*3)
+## 🎯 Use Cases
 
-## Response Formats
+- **Variant interpretation** — ACMG-style workflow with ClinVar lookup
+- **Pharmacogenomic dosing** — CPIC/DPWG guidelines for warfarin, clopidogrel, etc.
+- **Patient medication review** — Match genotypes to drug-gene interactions
+- **Research & education** — Reference resources for gene-disease, metabolizer phenotypes
 
-All tools support two response formats:
+---
 
-- **`concise`**: Returns clinically relevant information optimized for human-readable summaries
-  - Includes key findings, risk levels, and actionable recommendations
-  - Omits technical metadata and detailed cross-references
-  
-- **`detailed`**: Returns complete technical data including:
-  - Full IDs, metadata, and cross-references
-  - Complete annotation details and evidence levels
-  - Raw data structures for downstream processing
+## 🛠 Tools
 
-## PharmGKB HTML Parsing
+| Tool | Description |
+|------|-------------|
+| `clinvar_get_variant_info` | Search ClinVar by gene, rsID, HGVS, genomic location, ClinVar ID |
+| `clinvar_check_pathogenicity` | Quick pathogenicity check for a variant |
+| `clinvar_find_variants_in_region` | Scan genomic region for variants |
+| `pharmgkb_get_drug_gene_interactions` | Comprehensive drug pharmacogenomics (CPIC, FDA labels) |
+| `pharmgkb_check_patient_drug_risk` | Assess drug safety for patient genotypes |
+| `pharmgkb_get_gene_drug_pairs` | Find drugs affected by a gene (ClinPGx API) |
+| `genomics_clinical_summary` | Integrated clinical summary |
 
-The server includes a robust HTML parser for PharmGKB InfoButton API responses that extracts:
+All tools support `concise` (human-readable) and `detailed` (full metadata) response formats.
 
-- **Guidelines**: CPIC, DPWG, CPNDS, and other dosing guidelines with sources and summaries
-- **Drug Labels**: FDA and other regulatory labels with testing recommendations (Required/Recommended/Actionable/Informative)
-- **Clinical Annotations**: Evidence-based genotype-phenotype relationships with:
-  - Evidence levels (1A, 1B, 2A, 2B, 3, 4)
-  - Annotation types (Dosage, Toxicity, Metabolism/PK, Efficacy)
-  - Gene associations
-  - Genotype-specific effects and recommendations
+---
 
-The parser automatically extracts affected genes and identifies when genetic testing is recommended, enabling sophisticated patient-specific risk analysis.
+## 📚 Resources
 
-## Getting Started
+| Resource | URI | Content |
+|----------|-----|---------|
+| Gene-Disease Map | `genomics://gene-disease-map` | Key gene-disease associations |
+| VIP Pharmacogenes | `genomics://pharmacogenes` | CYP2C9, CYP2D6, VKORC1, etc. |
+| Genome Builds | `genomics://genome-builds` | GRCh37/GRCh38 reference |
+| Pathogenicity Guide | `genomics://pathogenicity-guide` | ClinVar classification |
+| Drug-Gene Pairs | `genomics://drug-gene-pairs` | High-priority interactions |
+| Metabolizer Phenotypes | `genomics://metabolizer-phenotypes` | PM, IM, NM, RM definitions |
+| Variant Nomenclature | `genomics://variant-nomenclature` | HGVS, rsID formats |
+| Testing Indications | `genomics://testing-indications` | When to order PGx testing |
+
+---
+
+## 🚀 Quick Start
 
 ### Prerequisites
 
-- Node.js (v20 or higher)
-- npm or yarn
+- **Node.js 20+**
+- **npm**
+- Internet (ClinVar, ClinPGx APIs)
 
 ### Installation
 
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/DavidOsherProceed/genomics-clinical-mcp-server.git
-   cd genomics-clinical-mcp-server
-   ```
+```bash
+git clone https://github.com/DavidOsherdiagnostica/genomics-clinical-mcp-server.git
+cd genomics-clinical-mcp-server
+npm install
+npm run build
+cp .env.example .env   # optional
+```
 
-2. **Install dependencies:**
-   ```bash
-   npm install
-   ```
+### Cursor (stdio — recommended for local)
 
-3. **Configure environment variables:**
-   ```bash
-   cp env_vars.txt .env
-   # Edit .env with your preferred settings
-   ```
+Create `.cursor/mcp.json` locally (not committed to the repo):
 
-4. **Build the project:**
-   ```bash
-   npm run build
-   ```
+```json
+{
+  "mcpServers": {
+    "genomics-clinical": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["dist/index.js"],
+      "cwd": "${workspaceFolder}",
+      "envFile": "${workspaceFolder}/.env"
+    }
+  }
+}
+```
 
-5. **Run the server:**
-   
-   **Stdio mode (for Claude Desktop):**
-   ```bash
-   npm run start:stdio
-   ```
-   
-   **HTTP mode:**
-   ```bash
-   npm run start:http
-   ```
+Enable in **Cursor Settings → MCP**, then restart Cursor.
 
-## Configuration
-
-Key environment variables (see `src/config/appConfig.ts` for defaults):
-
-- `CLINVAR_BASE_URL` - ClinVar E-utilities API endpoint (default: https://eutils.ncbi.nlm.nih.gov/entrez/eutils)
-- `PHARMGKB_BASE_URL` - PharmGKB/ClinPGx API endpoint (default: https://api.clinpgx.org/v1)
-- `MCP_SERVER_NAME` - Server identifier (default: genomics-clinical)
-- `LOG_LEVEL` - Logging verbosity (info, warn, error)
-- `PORT` - HTTP server port (default: 3000)
-- `API_TIMEOUT_MS` - API request timeout (default: 30000)
-- `API_RETRY_ATTEMPTS` - Number of retry attempts for failed requests (default: 3)
-
-## Usage
-
-### With Claude Desktop
-
-Add to your Claude Desktop MCP configuration:
+### Claude Desktop
 
 ```json
 {
   "mcpServers": {
     "genomics-clinical": {
       "command": "node",
-      "args": ["path/to/genomics-clinical-mcp-server/dist/index.js"]
+      "args": ["/path/to/genomics-clinical-mcp-server/dist/index.js"]
     }
   }
 }
 ```
 
-### API Integration
+### HTTP (remote / Docker)
 
-The server provides tools and resources accessible via the Model Context Protocol. Tools can be called by AI agents to:
+```bash
+npm run start:http
+# Server: http://127.0.0.1:3000/mcp
+# Health:  http://127.0.0.1:3000/health
+```
 
-- Look up variant pathogenicity from ClinVar with disease associations
-- Check pharmacogenetic interactions from PharmGKB with structured parsing of guidelines, labels, and annotations
-- Match patient genotypes to drug-gene interactions for personalized risk assessment
-- Generate integrated clinical summaries combining variant data with pharmacogenomic implications
-- Access reference data for genes, drugs, and testing guidelines
+### Docker
 
-### Example Use Cases
+```bash
+docker build -t genomics-clinical-mcp .
+docker run -p 8080:8080 genomics-clinical-mcp
+```
 
-**Patient Drug Risk Assessment:**
+---
+
+## ⚙️ Configuration
+
+See `.env.example` for all options. Key variables:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `CLINVAR_BASE_URL` | NCBI E-utilities | ClinVar API |
+| `PHARMGKB_BASE_URL` | `https://api.clinpgx.org/v1` | ClinPGx (PharmGKB migrated) |
+| `NCBI_API_KEY` | — | Optional, higher rate limits |
+| `OAUTH_ENABLED` | `false` | Enable OAuth for HTTP |
+| `OAUTH_REQUIRED` | `false` | Require Bearer token on `/mcp` |
+| `HOST` | `127.0.0.1` | HTTP bind address |
+| `PORT` | `3000` | HTTP port |
+
+---
+
+## 🔐 Security & OAuth
+
+- **stdio mode:** No OAuth; credentials via env if needed
+- **HTTP mode:** OAuth 2.1 optional; enable for production remote deployment
+- **RFC 9728:** `/.well-known/oauth-protected-resource` when OAuth enabled
+- **Rate limiting:** 60 req/min default on `/mcp`
+- **Origin validation:** Configurable via `CORS_ORIGINS`, `ALLOWED_HOSTS`
+
+For remote Cursor connection with OAuth:
+
 ```json
 {
-  "drug_name": "warfarin",
-  "patient_genotypes": [
-    { "gene": "CYP2C9", "genotype": "*2/*3" },
-    { "gene": "VKORC1", "genotype": "CT" }
-  ]
+  "mcpServers": {
+    "genomics-clinical": {
+      "url": "https://your-server.example.com/mcp",
+      "auth": {
+        "CLIENT_ID": "${env:MCP_CLIENT_ID}",
+        "scopes": ["genomics:read", "genomics:tools"]
+      }
+    }
+  }
 }
 ```
-Returns matched genes, relevant annotations, FDA labels, and dosing recommendations.
 
-**Clinical Summary:**
-```json
-{
-  "patient_genetic_data": {
-    "variants": ["BRCA1:c.3101_3102del"],
-    "genotypes": [{ "gene": "CYP2D6", "genotype": "*4/*4" }]
-  },
-  "current_medications": ["tamoxifen"]
-}
+---
+
+## 📋 Supported Formats
+
+- **Gene symbols:** HGNC (BRCA1, CYP2C9)
+- **rsIDs:** rs9923231
+- **HGVS:** NM_007294.4:c.3101_3102del
+- **Genomic locations:** chr, start, end, GRCh37/GRCh38
+- **ClinVar IDs:** VCV/RCV
+- **Drugs:** warfarin, clopidogrel
+- **Genotypes:** *1/*3, TT
+
+---
+
+## 🏗 Architecture
+
 ```
-Integrates ClinVar pathogenicity data with PharmGKB drug interactions for comprehensive clinical decision support.
+┌─────────────┐     stdio      ┌──────────────────────┐
+│   Cursor    │◄──────────────►│  Genomics Clinical   │
+│ Claude etc. │                │  MCP Server v2       │
+└─────────────┘                └──────────┬───────────┘
+                                          │
+                    ┌─────────────────────┼─────────────────────┐
+                    ▼                     ▼                     ▼
+              ┌──────────┐         ┌──────────┐         ┌──────────┐
+              │ ClinVar  │         │ ClinPGx  │         │ Resources│
+              │ E-utils  │         │ InfoBtn  │         │ (static) │
+              └──────────┘         └──────────┘         └──────────┘
+```
 
-## Medical Disclaimer
+- **SDK:** `@modelcontextprotocol/server` v2 (MCP 2026-07-28)
+- **Transports:** stdio (local), Streamable HTTP (remote, stateless)
+- **Entry points:** `dist/index.js` (stdio), `dist/server.js --http` (HTTP)
 
-**IMPORTANT**: This software is provided for **educational and informational purposes only**. It is **NOT intended for medical diagnosis, treatment, or clinical decision-making**.
+---
 
-- Always consult qualified healthcare professionals for medical advice
-- Verify all genetic and medication information with official sources
-- This software is not a substitute for professional medical judgment
-- The authors assume no responsibility for medical decisions based on this software
+## ⚠️ Medical Disclaimer
 
-## Development
+**For research and clinical decision support only.** Not a substitute for professional medical advice, diagnosis, or treatment. Always consult qualified healthcare providers and genetic counselors.
 
-For detailed development guidelines, see `AGENTS.md` which includes:
-- Project Overview and Core Components
-- Extending the Server (Prompts, Tools, Resources)
-- Key Development Principles (MCP SDK Compliance, Type Safety)
-- Contribution Guidelines
+---
 
-## License
+## 🤝 Contributing
 
-Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International (CC BY-NC-SA 4.0)
+1. Fork the repository
+2. Create a feature branch
+3. Run `npm run build && npm test`
+4. Submit a pull request
 
-For commercial use, please contact:
-- LinkedIn: [David Osher](https://linkedin.com/in/david-osher)
-- GitHub: Open an issue in the repository for commercial inquiries
+---
 
-See `LICENSE` file for full terms and conditions.
+## 📄 License
+
+[CC BY-NC-SA 4.0](LICENSE) — Attribution, NonCommercial, ShareAlike
+
+---
+
+## 👤 Author
+
+**David Osher** · [GitHub](https://github.com/DavidOsherdiagnostica) · [LinkedIn](https://linkedin.com/in/davidosher)
+
+Author of MCP connectors for Israel Gov open data and Israel MoH drug DB. Building reliable AI tooling for healthcare.
+
+**Related projects:**
+- [Israel Drugs MCP](https://github.com/DavidOsherdiagnostica/israel-drugs-mcp-server)
+- [data-gov-il-mcp](https://github.com/DavidOsherdiagnostica/data-gov-il-mcp)

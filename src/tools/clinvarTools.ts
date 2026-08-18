@@ -1,205 +1,246 @@
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { 
-  ClinvarGetVariantInfoSchema, ClinvarGetVariantInfoInput,
-  ClinvarCheckPathogenicitySchema, ClinvarCheckPathogenicityInput,
-  ClinvarFindVariantsInRegionSchema, ClinvarFindVariantsInRegionInput
-} from "../types/genomics.js";
-import { clinVarService } from "../services/clinvarService.js";
-import { validateGeneSymbol, validateRsid, validateHgvs, validateGenomicLocation } from "../utils/genomicsValidators.js";
-import { getResponseFormatter } from "../services/responseFormatter.js";
-import { createComprehensiveErrorResponse, classifyError } from "../utils/errorHandler.js";
+import type { McpServer } from '@modelcontextprotocol/server';
+import {
+  ClinvarGetVariantInfoSchema,
+  ClinvarCheckPathogenicitySchema,
+  ClinvarFindVariantsInRegionSchema,
+} from '../types/genomics.js';
+import { clinVarService } from '../services/clinvarService.js';
+import { validateGeneSymbol, validateRsid, validateHgvs, validateGenomicLocation } from '../utils/genomicsValidators.js';
+import {
+  classifySignificance,
+  mapClinVarRecord,
+  matchesConsequenceFilter,
+  matchesPathogenicityFilter,
+  matchesRegionPathogenicityFilter,
+  meetsConfidenceThreshold,
+  getConfidenceLevel,
+  sortClinVarRecords,
+} from '../utils/clinvarHelpers.js';
+import { formatToolResponse } from '../services/responseFormatter.js';
+import { createComprehensiveErrorResponse, classifyError } from '../utils/errorHandler.js';
+
+const READ_ONLY = { readOnlyHint: true as const, destructiveHint: false as const, openWorldHint: true as const };
 
 export function registerClinVarTools(server: McpServer): void {
-  const formatter = getResponseFormatter();
-
-  // Tool 1: clinvar_get_variant_info
   server.registerTool(
-    "clinvar_get_variant_info",
+    'clinvar_get_variant_info',
     {
-      title: "ClinVar Variant Info",
-      description: "Search ClinVar for genetic variants and retrieve clinical significance, disease associations, and genomic details.",
-      inputSchema: ClinvarGetVariantInfoSchema.shape,
+      title: 'ClinVar Variant Info',
+      description:
+        'Search ClinVar for genetic variants and retrieve clinical significance, disease associations, and genomic details.',
+      inputSchema: ClinvarGetVariantInfoSchema,
+      annotations: READ_ONLY,
     },
-    async (input: ClinvarGetVariantInfoInput) => {
+    async (input) => {
+      const started = Date.now();
       try {
-        let searchTerm = "";
+        let searchTerm = '';
 
-        // Determine search term based on input
         if (input.clinvar_id) {
-            searchTerm = input.clinvar_id; // Will use direct ID lookup logic if we implemented it, but esearch works too
+          searchTerm = input.clinvar_id;
         } else if (input.gene_symbol) {
-            const gene = validateGeneSymbol(input.gene_symbol);
-            searchTerm = `${gene}[gene]`;
+          const gene = validateGeneSymbol(input.gene_symbol);
+          searchTerm = `${gene}[gene]`;
         } else if (input.rs_id) {
-            const rsid = validateRsid(input.rs_id);
-            searchTerm = rsid;
+          searchTerm = validateRsid(input.rs_id);
         } else if (input.genomic_location) {
-            const { chr, start, end, build } = input.genomic_location;
-            validateGenomicLocation(chr, start, end, build);
-            const buildNum = build === 'GRCh37' ? '37' : '38';
-            searchTerm = `${chr}[chr] AND ${start}:${end}[chrpos${buildNum}]`;
+          const { chr, start, end, build } = input.genomic_location;
+          validateGenomicLocation(chr, start, end, build);
+          const buildNum = build === 'GRCh37' ? '37' : '38';
+          searchTerm = `${chr}[chr] AND ${start}:${end}[chrpos${buildNum}]`;
         } else if (input.hgvs) {
-            const hgvs = validateHgvs(input.hgvs);
-            searchTerm = hgvs;
+          searchTerm = validateHgvs(input.hgvs);
         } else {
-            throw new Error("Must provide one of: gene_symbol, rs_id, genomic_location, hgvs, or clinvar_id");
+          throw new Error('Must provide one of: gene_symbol, rs_id, genomic_location, hgvs, or clinvar_id');
         }
 
-        // 1. Search
         const ids = await clinVarService.searchVariants(searchTerm, input.limit);
-
         if (ids.length === 0) {
-            return formatter.formatGenericToolResponse({
-                status: "not_found",
-                message: "No variants found for query",
-                query: searchTerm
-            });
+          return formatToolResponse(
+            { status: 'not_found', message: 'No variants found for query', query: searchTerm },
+            { queryStartTime: started },
+          );
         }
 
-        // 2. Summary
         const rawResults = await clinVarService.getVariantSummary(ids);
+        const detailed = input.response_format === 'detailed';
+        const mapped = rawResults.map((record) => mapClinVarRecord(record, detailed));
+        const filteredVariants = mapped.filter((variant) =>
+          matchesPathogenicityFilter(variant.significance, input.pathogenicity_filter ?? 'all'),
+        );
 
-        // 3. Process & Filter
-        const variants = rawResults.map(r => {
-            const germline = r.germline_classification || {};
-            return {
-                id: r.uid,
-                accession: r.accession,
-                title: r.title,
-                gene: r.genes?.[0]?.symbol,
-                clinical_significance: germline.description || "Uncertain significance",
-                review_status: germline.review_status || "no assertion criteria provided",
-                last_evaluated: germline.last_evaluated,
-                diseases: r.germline_classification?.trait_set?.map((t: any) => t.trait_name) || [],
-                raw: input.response_format === 'detailed' ? r : undefined
-            };
-        });
-
-        // Filter by pathogenicity if requested
-        let filteredVariants = variants;
-        if (input.pathogenicity_filter !== 'all') {
-            filteredVariants = variants.filter(v => 
-                v.clinical_significance.toLowerCase().includes(input.pathogenicity_filter!.replace('_', ' '))
-            );
-        }
-
-        return formatter.formatGenericToolResponse({
-            status: "success",
+        return formatToolResponse(
+          {
+            status: 'success',
             total_found: ids.length,
             count_returned: filteredVariants.length,
-            variants: filteredVariants
-        });
-
+            variants: filteredVariants.map((variant) => ({
+              id: variant.uid,
+              accession: variant.accession,
+              title: variant.title,
+              gene: variant.gene,
+              clinical_significance: variant.significance,
+              review_status: variant.review_status,
+              molecular_consequences: variant.consequences,
+              position: variant.position,
+              diseases: variant.diseases,
+              raw: detailed ? variant.raw : undefined,
+            })),
+          },
+          { detailed, queryStartTime: started },
+        );
       } catch (error) {
-        return createComprehensiveErrorResponse(classifyError(error), null, { toolName: "clinvar_get_variant_info", userInput: input });
+        return createComprehensiveErrorResponse(classifyError(error), null, {
+          toolName: 'clinvar_get_variant_info',
+          userInput: input,
+        });
       }
-    }
+    },
   );
 
-  // Tool 2: clinvar_check_pathogenicity
   server.registerTool(
-    "clinvar_check_pathogenicity",
+    'clinvar_check_pathogenicity',
     {
-      title: "ClinVar Pathogenicity Check",
-      description: "Quick pathogenicity check for a specific variant.",
-      inputSchema: ClinvarCheckPathogenicitySchema.shape,
+      title: 'ClinVar Pathogenicity Check',
+      description: 'Quick pathogenicity check for a specific variant.',
+      inputSchema: ClinvarCheckPathogenicitySchema,
+      annotations: READ_ONLY,
     },
-    async (input: ClinvarCheckPathogenicityInput) => {
-        try {
-            let searchTerm = "";
-            if (input.variant_id) {
-                searchTerm = input.variant_id;
-            } else if (input.gene_position) {
-                const gene = validateGeneSymbol(input.gene_position.gene);
-                searchTerm = `${gene}[gene] AND ${input.gene_position.position}`;
-            } else {
-                throw new Error("Must provide variant_id or gene_position");
-            }
-
-            const ids = await clinVarService.searchVariants(searchTerm, 1);
-            if (ids.length === 0) {
-                return formatter.formatGenericToolResponse({ status: "not_found" });
-            }
-
-            const results = await clinVarService.getVariantSummary(ids);
-            const variant = results[0];
-            const sig = variant.germline_classification?.description || "Uncertain";
-
-            // Simplify classification
-            let classification = "UNCERTAIN";
-            if (sig.toLowerCase().includes("pathogenic")) classification = "PATHOGENIC";
-            else if (sig.toLowerCase().includes("benign")) classification = "BENIGN";
-
-            return formatter.formatGenericToolResponse({
-                status: "success",
-                variant_id: variant.uid,
-                classification,
-                raw_significance: sig,
-                review_status: variant.germline_classification?.review_status,
-                recommendation: classification === "PATHOGENIC" ? "Consider clinical action according to guidelines." : "Routine follow-up."
-            });
-
-        } catch (error) {
-            return createComprehensiveErrorResponse(classifyError(error), null, { toolName: "clinvar_check_pathogenicity", userInput: input });
+    async (input) => {
+      try {
+        let searchTerm = '';
+        if (input.variant_id) {
+          searchTerm = input.variant_id;
+        } else if (input.gene_position) {
+          const gene = validateGeneSymbol(input.gene_position.gene);
+          searchTerm = `${gene}[gene] AND ${input.gene_position.position}`;
+        } else {
+          throw new Error('Must provide variant_id or gene_position');
         }
-    }
+
+        const ids = await clinVarService.searchVariants(searchTerm, 1);
+        if (ids.length === 0) {
+          return formatToolResponse({ status: 'not_found' });
+        }
+
+        const results = await clinVarService.getVariantSummary(ids);
+        const variant = mapClinVarRecord(results[0], input.response_format === 'detailed');
+        const classification = classifySignificance(variant.significance);
+        const confidence = getConfidenceLevel(variant.review_status);
+        const meetsThreshold = meetsConfidenceThreshold(variant.review_status, input.confidence_threshold ?? 'any');
+
+        const response = {
+          status: 'success' as const,
+          variant_id: variant.uid,
+          accession: variant.accession,
+          classification,
+          raw_significance: variant.significance,
+          review_status: variant.review_status,
+          confidence_level: confidence,
+          meets_confidence_threshold: meetsThreshold,
+          molecular_consequences: variant.consequences,
+          recommendation: meetsThreshold
+            ? classification === 'PATHOGENIC'
+              ? 'Consider clinical action according to guidelines.'
+              : 'Routine follow-up.'
+            : `Classification reported as "${variant.significance}" but review status "${variant.review_status ?? 'unknown'}" does not meet ${input.confidence_threshold} confidence threshold. Interpret cautiously.`,
+          raw: input.response_format === 'detailed' ? variant.raw : undefined,
+        };
+
+        return formatToolResponse(response, { detailed: input.response_format === 'detailed' });
+      } catch (error) {
+        return createComprehensiveErrorResponse(classifyError(error), null, {
+          toolName: 'clinvar_check_pathogenicity',
+          userInput: input,
+        });
+      }
+    },
   );
 
-  // Tool 3: clinvar_find_variants_in_region
   server.registerTool(
-    "clinvar_find_variants_in_region",
+    'clinvar_find_variants_in_region',
     {
-        title: "ClinVar Region Search",
-        description: "Scan a genomic region for all known variants and their clinical significance.",
-        inputSchema: ClinvarFindVariantsInRegionSchema.shape,
+      title: 'ClinVar Region Search',
+      description: 'Scan a genomic region for all known variants and their clinical significance.',
+      inputSchema: ClinvarFindVariantsInRegionSchema,
+      annotations: READ_ONLY,
     },
-    async (input: ClinvarFindVariantsInRegionInput) => {
-        try {
-            validateGenomicLocation(input.chromosome, input.start_position, input.end_position, input.genome_build);
-            
-            const buildNum = input.genome_build === 'GRCh37' ? '37' : '38';
-            const term = `${input.chromosome}[chr] AND ${input.start_position}:${input.end_position}[chrpos${buildNum}]`;
+    async (input) => {
+      try {
+        validateGenomicLocation(input.chromosome, input.start_position, input.end_position, input.genome_build);
 
-            const ids = await clinVarService.searchVariants(term, input.max_results);
-            const results = await clinVarService.getVariantSummary(ids);
+        const buildNum = input.genome_build === 'GRCh37' ? '37' : '38';
+        const term = `${input.chromosome}[chr] AND ${input.start_position}:${input.end_position}[chrpos${buildNum}]`;
 
-            // Calculate summary stats
-            let pathogenic = 0, benign = 0, uncertain = 0;
-            const genes = new Set<string>();
+        const ids = await clinVarService.searchVariants(term, input.max_results);
+        const results = await clinVarService.getVariantSummary(ids);
+        const detailed = input.response_format === 'detailed';
 
-            const variants = results.map(r => {
-                const sig = r.germline_classification?.description || "Uncertain";
-                if (sig.toLowerCase().includes("pathogenic")) pathogenic++;
-                else if (sig.toLowerCase().includes("benign")) benign++;
-                else uncertain++;
+        const mapped = results
+          .map((record) => mapClinVarRecord(record, detailed))
+          .filter((variant) => matchesRegionPathogenicityFilter(variant.significance, input.pathogenicity_filter ?? 'all'))
+          .filter((variant) => matchesConsequenceFilter(variant.consequences, input.consequence_filter));
 
-                if (r.genes?.[0]?.symbol) genes.add(r.genes[0].symbol);
+        const sorted = sortClinVarRecords(mapped, input.sort_by ?? 'clinical_importance');
 
-                return {
-                    id: r.uid,
-                    gene: r.genes?.[0]?.symbol,
-                    significance: sig,
-                    diseases: r.germline_classification?.trait_set?.map((t: any) => t.trait_name) || []
-                };
-            });
+        let pathogenic = 0;
+        let benign = 0;
+        let uncertain = 0;
+        const genes = new Set<string>();
 
-            return formatter.formatGenericToolResponse({
-                status: "success",
-                region: { ...input },
-                summary: {
-                    total_variants: variants.length,
-                    pathogenic,
-                    benign,
-                    uncertain,
-                    genes_affected: Array.from(genes)
-                },
-                variants: input.response_format === 'concise' ? variants.map(v => ({ id: v.id, gene: v.gene, significance: v.significance })) : variants
-            });
-
-        } catch (error) {
-            return createComprehensiveErrorResponse(classifyError(error), null, { toolName: "clinvar_find_variants_in_region", userInput: input });
+        for (const variant of sorted) {
+          const sig = variant.significance.toLowerCase();
+          if (sig.includes('pathogenic') && !sig.includes('benign')) pathogenic++;
+          else if (sig.includes('benign')) benign++;
+          else uncertain++;
+          if (variant.gene) genes.add(variant.gene);
         }
-    }
+
+        const variants = sorted.map((variant) => ({
+          id: variant.uid,
+          gene: variant.gene,
+          position: variant.position,
+          significance: variant.significance,
+          molecular_consequences: variant.consequences,
+          diseases: variant.diseases,
+          review_status: detailed ? variant.review_status : undefined,
+          raw: detailed ? variant.raw : undefined,
+        }));
+
+        return formatToolResponse(
+          {
+            status: 'success',
+            region: { ...input },
+            filters_applied: {
+              pathogenicity: input.pathogenicity_filter,
+              consequences: input.consequence_filter,
+              sort_by: input.sort_by,
+            },
+            summary: {
+              total_variants: variants.length,
+              pathogenic,
+              benign,
+              uncertain,
+              genes_affected: Array.from(genes),
+            },
+            variants:
+              input.response_format === 'concise'
+                ? variants.map((variant) => ({
+                    id: variant.id,
+                    gene: variant.gene,
+                    position: variant.position,
+                    significance: variant.significance,
+                  }))
+                : variants,
+          },
+          { detailed },
+        );
+      } catch (error) {
+        return createComprehensiveErrorResponse(classifyError(error), null, {
+          toolName: 'clinvar_find_variants_in_region',
+          userInput: input,
+        });
+      }
+    },
   );
 }
-

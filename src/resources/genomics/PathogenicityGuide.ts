@@ -1,5 +1,5 @@
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { z } from "zod";
+import type { McpServer } from '@modelcontextprotocol/server';
+import { STATIC_RESOURCE_TTL_MS } from '../../server/createServer.js';
 
 const PathogenicityGuide = {
   "classifications": {
@@ -80,7 +80,8 @@ export function registerPathogenicityGuide(server: McpServer) {
     {
       title: "ClinVar Pathogenicity Classification Guide",
       description: "Explanation of ClinVar clinical significance terms and what they mean for patient care.",
-      schema: z.object({}).passthrough()
+      mimeType: 'application/json',
+      cacheHint: { ttlMs: STATIC_RESOURCE_TTL_MS, cacheScope: 'public' }
     },
     async () => ({
       contents: [{

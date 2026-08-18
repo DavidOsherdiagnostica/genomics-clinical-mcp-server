@@ -1,5 +1,5 @@
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { z } from "zod";
+import type { McpServer } from '@modelcontextprotocol/server';
+import { STATIC_RESOURCE_TTL_MS } from '../../server/createServer.js';
 
 const TestingIndications = {
   "cancer_risk": {
@@ -63,7 +63,8 @@ export function registerTestingIndications(server: McpServer) {
     {
       title: "Genetic Testing Indications",
       description: "When to consider genetic testing based on clinical scenario.",
-      schema: z.object({}).passthrough()
+      mimeType: 'application/json',
+      cacheHint: { ttlMs: STATIC_RESOURCE_TTL_MS, cacheScope: 'public' }
     },
     async () => ({
       contents: [{
