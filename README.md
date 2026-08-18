@@ -117,7 +117,7 @@ The parser automatically extracts affected genes and identifies when genetic tes
 Key environment variables (see `src/config/appConfig.ts` for defaults):
 
 - `CLINVAR_BASE_URL` - ClinVar E-utilities API endpoint (default: https://eutils.ncbi.nlm.nih.gov/entrez/eutils)
-- `PHARMGKB_BASE_URL` - PharmGKB API endpoint (default: https://api.pharmgkb.org/v1)
+- `PHARMGKB_BASE_URL` - PharmGKB/ClinPGx API endpoint (default: https://api.clinpgx.org/v1)
 - `MCP_SERVER_NAME` - Server identifier (default: genomics-clinical)
 - `LOG_LEVEL` - Logging verbosity (info, warn, error)
 - `PORT` - HTTP server port (default: 3000)

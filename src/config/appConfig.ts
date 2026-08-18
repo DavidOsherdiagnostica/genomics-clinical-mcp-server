@@ -7,7 +7,8 @@
 // ===== API CONFIGURATION =====
 export const APP_CONFIG = {
   CLINVAR_BASE_URL: process.env.CLINVAR_BASE_URL || 'https://eutils.ncbi.nlm.nih.gov/entrez/eutils',
-  PHARMGKB_BASE_URL: process.env.PHARMGKB_BASE_URL || 'https://api.pharmgkb.org/v1',
+  // PharmGKB retired the api.pharmgkb.org hostname on 2026-07-20 in favor of ClinPGx; same endpoints/format.
+  PHARMGKB_BASE_URL: process.env.PHARMGKB_BASE_URL || 'https://api.clinpgx.org/v1',
   API_VERSION: process.env.API_VERSION || '1.0.0',
   DEFAULT_DATA_SOURCE: 'genomics_clinical_data', // Default source for response metadata
 } as const;

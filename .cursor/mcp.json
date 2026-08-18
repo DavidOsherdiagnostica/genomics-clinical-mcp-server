@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "genomics-clinical": {
+      "command": "C:\\Program Files\\nodejs\\node.exe",
+      "args": ["dist/index.js"],
+      "cwd": "c:\\projects\\genomics-clinical-mcp-server"
+    }
+  }
+}
