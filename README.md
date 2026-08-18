@@ -11,7 +11,7 @@
 [![MCP Protocol](https://img.shields.io/badge/MCP-2026--07--28-blue)](https://modelcontextprotocol.io/specification/2026-07-28)
 [![License: CC BY-NC-SA 4.0](https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-lightgrey.svg)](LICENSE)
 
-Revolutionary **Model Context Protocol** server providing AI agents with clinical genomics and pharmacogenomics decision support. Integrates **ClinVar** variant pathogenicity data with **PharmGKB/ClinPGx** drug-gene interaction guidelines.
+**Model Context Protocol** server for clinical genomics and pharmacogenomics decision support. Integrates **ClinVar** variant pathogenicity data with **PharmGKB/ClinPGx** drug-gene interaction guidelines.
 
 > **Sibling project:** [Israel Drugs MCP Server](https://github.com/DavidOsherdiagnostica/israel-drugs-mcp-server) — Israeli Ministry of Health pharmaceutical database
 
