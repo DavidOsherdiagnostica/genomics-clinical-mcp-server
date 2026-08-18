@@ -19,7 +19,7 @@ export function setupHttpServer(port: number = HTTP_CONFIG.PORT) {
     allowedOrigins: HTTP_CONFIG.CORS_ORIGINS,
   });
 
-  app.get('/health', (_req, res) => {
+  app.get('/health', (_req: unknown, res: { json: (body: Record<string, unknown>) => void }) => {
     res.json({
       status: 'ok',
       service: MCP_SERVER_CONFIG.SERVER_NAME,
